@@ -125,10 +125,17 @@ async function sendTelegramNotification(message) {
       parse_mode: 'HTML'
     };
 
-    await axios.post(url, data);
-    console.log('📱 Telegram notification sent');
+    console.log('📱 Sending Telegram notification to:', TELEGRAM_CHAT_ID);
+    console.log('📱 Message:', message);
+    
+    const response = await axios.post(url, data);
+    console.log('📱 Telegram notification sent successfully:', response.status);
   } catch (error) {
     console.error('❌ Failed to send Telegram notification:', error.message);
+    if (error.response) {
+      console.error('❌ Response status:', error.response.status);
+      console.error('❌ Response data:', error.response.data);
+    }
   }
 }
 
