@@ -87,6 +87,32 @@ app.post('/webhook/github', (req, res) => {
           `Статус: ${conclusion}`
         );
       }
+    } else if (action === 'requested' && workflow_run) {
+      // Workflow запустился
+      const { name, head_branch } = workflow_run;
+      const repoName = repository?.name || 'unknown';
+      
+      console.log(`🐙 GitHub Actions started for ${repoName}: ${name}`);
+      
+      sendTelegramNotification(
+        `🚀 <b>GitHub Actions</b> запущен!\n` +
+        `Репозиторий: ${repoName}\n` +
+        `Ветка: ${head_branch}\n` +
+        `Workflow: ${name}`
+      );
+    } else if (action === 'in_progress' && workflow_run) {
+      // Workflow выполняется
+      const { name, head_branch } = workflow_run;
+      const repoName = repository?.name || 'unknown';
+      
+      console.log(`🐙 GitHub Actions in progress for ${repoName}: ${name}`);
+      
+      sendTelegramNotification(
+        `⏳ <b>GitHub Actions</b> выполняется...\n` +
+        `Репозиторий: ${repoName}\n` +
+        `Ветка: ${head_branch}\n` +
+        `Workflow: ${name}`
+      );
     } else if (action === 'opened' || action === 'synchronize') {
       // Push события
       const repoName = repository?.name || 'unknown';
