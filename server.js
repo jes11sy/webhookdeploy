@@ -62,12 +62,13 @@ app.get('/health', (req, res) => {
 app.post('/webhook/github', (req, res) => {
   try {
     console.log('🐙 GitHub Actions webhook received');
+    console.log('🐙 Webhook data:', JSON.stringify(req.body, null, 2));
     
     const { action, workflow_run, repository } = req.body;
     
-    if (action === 'completed') {
+    if (action === 'completed' && workflow_run) {
       const { conclusion, status, head_branch } = workflow_run;
-      const repoName = repository.name;
+      const repoName = repository?.name || 'unknown';
       
       console.log(`🐙 GitHub Actions completed for ${repoName}: ${conclusion}`);
       
@@ -86,6 +87,21 @@ app.post('/webhook/github', (req, res) => {
           `Статус: ${conclusion}`
         );
       }
+    } else if (action === 'opened' || action === 'synchronize') {
+      // Push события
+      const repoName = repository?.name || 'unknown';
+      const branch = req.body.ref?.replace('refs/heads/', '') || 'unknown';
+      
+      console.log(`🐙 GitHub push received for ${repoName}: ${branch}`);
+      
+      sendTelegramNotification(
+        `🚀 <b>GitHub Push</b> получен!\n` +
+        `Репозиторий: ${repoName}\n` +
+        `Ветка: ${branch}\n` +
+        `Действие: ${action}`
+      );
+    } else {
+      console.log(`🐙 GitHub webhook action: ${action}, workflow_run: ${!!workflow_run}`);
     }
     
     res.status(200).json({ message: 'GitHub webhook processed successfully' });
