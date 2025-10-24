@@ -265,6 +265,7 @@ async function getDeploymentStatus(namespace, deployment) {
 app.listen(PORT, () => {
   console.log(`🚀 Webhook Server running on port ${PORT}`);
   console.log(`📡 Docker Hub webhook endpoint: /webhook/dockerhub`);
+  console.log(`📡 GitHub webhook endpoint: /webhook/github`);
   console.log(`📊 Status endpoint: /health`);
 });
 
