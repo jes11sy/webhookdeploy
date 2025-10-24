@@ -159,8 +159,15 @@ app.post('/webhook/dockerhub', async (req, res) => {
   try {
     // Docker Hub doesn't send signature, so we skip verification
     console.log('📦 Docker Hub webhook received');
+    console.log('📦 Docker Hub webhook body:', JSON.stringify(req.body, null, 2));
 
     const { repository, push_data } = req.body;
+    
+    if (!repository || !push_data) {
+      console.log('❌ Invalid Docker Hub webhook format');
+      return res.status(400).json({ error: 'Invalid webhook format' });
+    }
+    
     const imageName = repository.repo_name;
     const tag = push_data.tag;
 
