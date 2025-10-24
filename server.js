@@ -2,50 +2,9 @@ const express = require('express');
 const { exec } = require('child_process');
 const axios = require('axios');
 const cron = require('node-cron');
-const k8s = require('@kubernetes/client-node');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-
-// Kubernetes client
-const kc = new k8s.KubeConfig();
-let k8sApi;
-try {
-  // Load from cluster with ServiceAccount token
-  kc.loadFromCluster();
-  
-  // Set the token from ServiceAccount
-  const tokenPath = '/var/run/secrets/kubernetes.io/serviceaccount/token';
-  const caPath = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
-  const fs = require('fs');
-  
-  if (fs.existsSync(tokenPath)) {
-    const token = fs.readFileSync(tokenPath, 'utf8');
-    kc.setCurrentContext(kc.getCurrentContext());
-    kc.applyToRequest = (request) => {
-      request.headers.Authorization = `Bearer ${token}`;
-    };
-    console.log('✅ ServiceAccount token loaded');
-  }
-  
-  // Set CA certificate
-  if (fs.existsSync(caPath)) {
-    const ca = fs.readFileSync(caPath, 'utf8');
-    kc.applyToRequest = (request) => {
-      if (request.headers.Authorization) {
-        request.headers.Authorization = request.headers.Authorization;
-      }
-      request.ca = ca;
-    };
-    console.log('✅ CA certificate loaded');
-  }
-  
-  k8sApi = kc.makeApiClient(k8s.AppsV1Api);
-  console.log('✅ Kubernetes API client initialized');
-} catch (error) {
-  console.error('❌ Failed to initialize Kubernetes API client:', error);
-  process.exit(1);
-}
 
 // Environment variables
 const DOCKERHUB_SECRET = process.env.DOCKERHUB_SECRET;
@@ -244,54 +203,29 @@ app.post('/webhook/dockerhub', async (req, res) => {
   }
 });
 
-// Update deployment function using Kubernetes API
+// Update deployment function
 async function updateDeployment(namespace, deployment, image, tag) {
-  try {
+  return new Promise((resolve, reject) => {
     const fullImageName = `${image}:${tag}`;
-    console.log(`🔄 Updating ${deployment} in ${namespace} to ${fullImageName}`);
+    const command = `kubectl set image deployment/${deployment} ${deployment}=${fullImageName} -n ${namespace}`;
     
-    // Get current deployment
-    const currentDeployment = await k8sApi.readNamespacedDeployment(deployment, namespace);
-    const deploymentBody = currentDeployment.body;
+    console.log(`🔄 Executing: ${command}`);
     
-    // Update image in all containers
-    if (deploymentBody.spec.template.spec.containers) {
-      deploymentBody.spec.template.spec.containers.forEach(container => {
-        // Update the first container or container with matching name
-        if (container.name === deployment || deploymentBody.spec.template.spec.containers.indexOf(container) === 0) {
-          container.image = fullImageName;
-          console.log(`🔄 Updated container ${container.name} to ${fullImageName}`);
-        }
-      });
-    }
-    
-    // Apply the update using strategic merge patch
-    const result = await k8sApi.patchNamespacedDeployment(
-      deployment,
-      namespace,
-      {
-        spec: {
-          template: {
-            spec: {
-              containers: deploymentBody.spec.template.spec.containers
-            }
-          }
-        }
-      },
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      { headers: { 'Content-Type': 'application/strategic-merge-patch+json' } }
-    );
-    
-    console.log(`✅ Successfully updated ${deployment} in ${namespace}`);
-    return result.body;
-    
-  } catch (error) {
-    console.error(`❌ Failed to update ${deployment}:`, error.message);
-    throw error;
-  }
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ kubectl error: ${error}`);
+        reject(error);
+        return;
+      }
+      
+      console.log(`✅ kubectl output: ${stdout}`);
+      if (stderr) {
+        console.log(`⚠️ kubectl stderr: ${stderr}`);
+      }
+      
+      resolve(stdout);
+    });
+  });
 }
 
 // Send Telegram notification
