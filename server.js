@@ -230,16 +230,24 @@ async function updateDeployment(namespace, deployment, image, tag) {
       });
     }
     
-    // Apply the update
+    // Apply the update using strategic merge patch
     const result = await k8sApi.patchNamespacedDeployment(
       deployment,
       namespace,
-      deploymentBody,
+      {
+        spec: {
+          template: {
+            spec: {
+              containers: deploymentBody.spec.template.spec.containers
+            }
+          }
+        }
+      },
       undefined,
       undefined,
       undefined,
       undefined,
-      { headers: { 'Content-Type': 'application/merge-patch+json' } }
+      { headers: { 'Content-Type': 'application/strategic-merge-patch+json' } }
     );
     
     console.log(`✅ Successfully updated ${deployment} in ${namespace}`);
