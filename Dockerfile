@@ -11,7 +11,7 @@ RUN chmod +x kubectl && mv kubectl /usr/local/bin/
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Copy source code
 COPY server.js ./
