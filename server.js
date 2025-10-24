@@ -11,7 +11,18 @@ const PORT = process.env.PORT || 8080;
 const kc = new k8s.KubeConfig();
 let k8sApi;
 try {
+  // Load from cluster with ServiceAccount token
   kc.loadFromCluster();
+  
+  // Set the token from ServiceAccount
+  const tokenPath = '/var/run/secrets/kubernetes.io/serviceaccount/token';
+  const fs = require('fs');
+  if (fs.existsSync(tokenPath)) {
+    const token = fs.readFileSync(tokenPath, 'utf8');
+    kc.setToken(token);
+    console.log('✅ ServiceAccount token loaded');
+  }
+  
   k8sApi = kc.makeApiClient(k8s.AppsV1Api);
   console.log('✅ Kubernetes API client initialized');
 } catch (error) {
