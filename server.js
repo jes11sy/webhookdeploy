@@ -161,15 +161,15 @@ app.post('/webhook/dockerhub', (req, res) => {
 
     const serviceConfig = SERVICE_MAPPINGS[serviceKey];
     
-        // Update deployment
-        updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, tag)
+        // Update deployment - ВСЕГДА используем latest тег
+        updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, 'latest')
           .then(() => {
             console.log(`✅ Successfully updated ${serviceConfig.deployment}`);
             
             // Mark service as updated for monitoring
             updatedServices.set(serviceKey, true);
             
-            sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> обновлен до ${imageName}:${tag}\n⏳ Ожидаем запуск...`);
+            sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> обновлен до ${imageName}:latest\n⏳ Ожидаем запуск...`);
           })
           .catch(error => {
             console.error(`❌ Failed to update ${serviceConfig.deployment}:`, error);
