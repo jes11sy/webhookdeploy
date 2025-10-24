@@ -222,7 +222,8 @@ async function updateDeployment(namespace, deployment, image, tag) {
     // Update image in all containers
     if (deploymentBody.spec.template.spec.containers) {
       deploymentBody.spec.template.spec.containers.forEach(container => {
-        if (container.name === deployment) {
+        // Update the first container or container with matching name
+        if (container.name === deployment || deploymentBody.spec.template.spec.containers.indexOf(container) === 0) {
           container.image = fullImageName;
           console.log(`🔄 Updated container ${container.name} to ${fullImageName}`);
         }
