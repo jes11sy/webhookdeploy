@@ -66,16 +66,20 @@ app.post('/webhook/dockerhub', (req, res) => {
 
     const serviceConfig = SERVICE_MAPPINGS[serviceKey];
     
-    // Update deployment
-    updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, tag)
-      .then(() => {
-        console.log(`✅ Successfully updated ${serviceConfig.deployment}`);
-        sendTelegramNotification(`🚀 ${serviceConfig.deployment} обновлен до ${imageName}:${tag}`);
-      })
-      .catch(error => {
-        console.error(`❌ Failed to update ${serviceConfig.deployment}:`, error);
-        sendTelegramNotification(`❌ Ошибка обновления ${serviceConfig.deployment}: ${error.message}`);
-      });
+        // Update deployment
+        updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, tag)
+          .then(() => {
+            console.log(`✅ Successfully updated ${serviceConfig.deployment}`);
+            
+            // Mark service as updated for monitoring
+            updatedServices.set(serviceKey, true);
+            
+            sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> обновлен до ${imageName}:${tag}\n⏳ Ожидаем запуск...`);
+          })
+          .catch(error => {
+            console.error(`❌ Failed to update ${serviceConfig.deployment}:`, error);
+            sendTelegramNotification(`❌ Ошибка обновления ${serviceConfig.deployment}: ${error.message}`);
+          });
 
     res.status(200).json({ message: 'Webhook processed successfully' });
 
@@ -139,6 +143,9 @@ async function sendTelegramNotification(message) {
   }
 }
 
+// Track services that were recently updated
+const updatedServices = new Map();
+
 // Monitor deployments status (runs every 30 seconds)
 cron.schedule('*/30 * * * * *', async () => {
   console.log('🔍 Checking deployments status...');
@@ -150,17 +157,18 @@ cron.schedule('*/30 * * * * *', async () => {
       // Check if service is running (1/1 or more)
       if (status.isReady && status.readyReplicas > 0) {
         console.log(`✅ ${serviceName}: ${status.readyReplicas}/${status.replicas} running`);
-      } else {
-        console.log(`⚠️ ${serviceName}: ${status.readyReplicas}/${status.replicas} running`);
         
-        // Send alert if service is not ready
-        if (status.readyReplicas === 0 && status.replicas > 0) {
+        // Send success notification if this service was recently updated
+        if (updatedServices.has(serviceName)) {
           await sendTelegramNotification(
-            `🚨 <b>${serviceName}</b> не работает!\n` +
-            `Статус: ${status.readyReplicas}/${status.replicas}\n` +
+            `✅ <b>${serviceName}</b> успешно обновлен и работает!\n` +
+            `Статус: ${status.readyReplicas}/${status.replicas} running\n` +
             `Namespace: ${config.namespace}`
           );
+          updatedServices.delete(serviceName);
         }
+      } else {
+        console.log(`⚠️ ${serviceName}: ${status.readyReplicas}/${status.replicas} running`);
       }
     } catch (error) {
       console.error(`❌ Error checking ${serviceName}:`, error.message);
