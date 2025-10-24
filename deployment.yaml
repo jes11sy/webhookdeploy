@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-server
+  namespace: frontend
+  labels:
+    app: webhook-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-server
+  template:
+    metadata:
+      labels:
+        app: webhook-server
+    spec:
+      containers:
+      - name: webhook-server
+        image: jes11sy/webhook-server:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DOCKERHUB_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: webhook-secret
+              key: secret
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: deploy-telegram-secret
+              key: deploy-bot-token
+        - name: TELEGRAM_CHAT_ID
+          valueFrom:
+            secretKeyRef:
+              name: deploy-telegram-secret
+              key: deploy-chat-id
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      serviceAccountName: webhook-sa
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-service
+  namespace: frontend
+  labels:
+    app: webhook-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: webhook-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-service-external
+  namespace: frontend
+  labels:
+    app: webhook-server
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: webhook-server
