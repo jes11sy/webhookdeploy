@@ -1,7 +1,6 @@
 const express = require('express');
 const { exec } = require('child_process');
 const axios = require('axios');
-const crypto = require('crypto');
 const cron = require('node-cron');
 
 const app = express();
@@ -52,6 +51,9 @@ const SERVICE_MAPPINGS = {
 };
 
 app.use(express.json());
+
+// Track services that were recently updated
+const updatedServices = new Map();
 
 // Health check
 app.get('/health', (req, res) => {
@@ -138,7 +140,7 @@ app.post('/webhook/github', (req, res) => {
 });
 
 // Docker Hub webhook
-app.post('/webhook/dockerhub', (req, res) => {
+app.post('/webhook/dockerhub', async (req, res) => {
   try {
     // Docker Hub doesn't send signature, so we skip verification
     console.log('📦 Docker Hub webhook received');
@@ -161,22 +163,23 @@ app.post('/webhook/dockerhub', (req, res) => {
 
     const serviceConfig = SERVICE_MAPPINGS[serviceKey];
     
-        // Update deployment - ВСЕГДА используем latest тег
-        updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, 'latest')
-          .then(() => {
-            console.log(`✅ Successfully updated ${serviceConfig.deployment}`);
-            
-            // Mark service as updated for monitoring
-            updatedServices.set(serviceKey, true);
-            
-            sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> обновлен до ${imageName}:latest\n⏳ Ожидаем запуск...`);
-          })
-          .catch(error => {
-            console.error(`❌ Failed to update ${serviceConfig.deployment}:`, error);
-            sendTelegramNotification(`❌ Ошибка обновления ${serviceConfig.deployment}: ${error.message}`);
-          });
-
-    res.status(200).json({ message: 'Webhook processed successfully' });
+    // Update deployment - ВСЕГДА используем latest тег
+    try {
+      await updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, 'latest');
+      
+      console.log(`✅ Successfully updated ${serviceConfig.deployment}`);
+      
+      // Mark service as updated for monitoring
+      updatedServices.set(serviceKey, true);
+      
+      sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> обновлен до ${imageName}:latest\n⏳ Ожидаем запуск...`);
+      
+      res.status(200).json({ message: 'Webhook processed successfully' });
+    } catch (error) {
+      console.error(`❌ Failed to update ${serviceConfig.deployment}:`, error);
+      sendTelegramNotification(`❌ Ошибка обновления ${serviceConfig.deployment}: ${error.message}`);
+      res.status(500).json({ error: 'Failed to update deployment' });
+    }
 
   } catch (error) {
     console.error('Webhook processing error:', error);
@@ -237,9 +240,6 @@ async function sendTelegramNotification(message) {
     }
   }
 }
-
-// Track services that were recently updated
-const updatedServices = new Map();
 
 // Monitor deployments status (runs every 30 seconds)
 cron.schedule('*/30 * * * * *', async () => {
