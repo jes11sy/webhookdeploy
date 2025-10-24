@@ -9,8 +9,15 @@ const PORT = process.env.PORT || 8080;
 
 // Kubernetes client
 const kc = new k8s.KubeConfig();
-kc.loadFromCluster();
-const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
+let k8sApi;
+try {
+  kc.loadFromCluster();
+  k8sApi = kc.makeApiClient(k8s.AppsV1Api);
+  console.log('✅ Kubernetes API client initialized');
+} catch (error) {
+  console.error('❌ Failed to initialize Kubernetes API client:', error);
+  process.exit(1);
+}
 
 // Environment variables
 const DOCKERHUB_SECRET = process.env.DOCKERHUB_SECRET;
