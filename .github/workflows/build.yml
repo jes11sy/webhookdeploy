@@ -3,7 +3,7 @@ name: Build Webhook Server
 on:
   push:
     paths:
-      - 'webhook-server/**'
+      - '**'
   workflow_dispatch:
 
 jobs:
@@ -21,6 +21,5 @@ jobs:
     
     - name: Build and push webhook server
       run: |
-        cd webhook-server
         docker build -t jes11sy/webhook-server:latest .
         docker push jes11sy/webhook-server:latest
