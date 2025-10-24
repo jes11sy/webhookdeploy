@@ -2,9 +2,15 @@ const express = require('express');
 const { exec } = require('child_process');
 const axios = require('axios');
 const cron = require('node-cron');
+const k8s = require('@kubernetes/client-node');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Kubernetes client
+const kc = new k8s.KubeConfig();
+kc.loadFromCluster();
+const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
 
 // Environment variables
 const DOCKERHUB_SECRET = process.env.DOCKERHUB_SECRET;
@@ -38,6 +44,7 @@ const SERVICE_MAPPINGS = {
   // Frontend services
   'callcentre-frontend': { namespace: 'frontend', deployment: 'callcentre-frontend' },
   'callcentre': { namespace: 'frontend', deployment: 'callcentre-frontend' },
+  'front_callcentre': { namespace: 'frontend', deployment: 'callcentre-frontend' },
   'dircrm-frontend': { namespace: 'frontend', deployment: 'dircrm-frontend' },
   'front_dir': { namespace: 'frontend', deployment: 'dircrm-frontend' },
   'mastercrm-frontend': { namespace: 'frontend', deployment: 'mastercrm-frontend' },
@@ -51,6 +58,14 @@ const SERVICE_MAPPINGS = {
 };
 
 app.use(express.json());
+
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+  console.log(`📥 Headers:`, JSON.stringify(req.headers, null, 2));
+  console.log(`📥 Body:`, JSON.stringify(req.body, null, 2));
+  next();
+});
 
 // Track services that were recently updated
 const updatedServices = new Map();
@@ -187,29 +202,45 @@ app.post('/webhook/dockerhub', async (req, res) => {
   }
 });
 
-// Update deployment function
+// Update deployment function using Kubernetes API
 async function updateDeployment(namespace, deployment, image, tag) {
-  return new Promise((resolve, reject) => {
+  try {
     const fullImageName = `${image}:${tag}`;
-    const command = `kubectl set image deployment/${deployment} ${deployment}=${fullImageName} -n ${namespace}`;
+    console.log(`🔄 Updating ${deployment} in ${namespace} to ${fullImageName}`);
     
-    console.log(`🔄 Executing: ${command}`);
+    // Get current deployment
+    const currentDeployment = await k8sApi.readNamespacedDeployment(deployment, namespace);
+    const deploymentBody = currentDeployment.body;
     
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`❌ kubectl error: ${error}`);
-        reject(error);
-        return;
-      }
-      
-      console.log(`✅ kubectl output: ${stdout}`);
-      if (stderr) {
-        console.log(`⚠️ kubectl stderr: ${stderr}`);
-      }
-      
-      resolve(stdout);
-    });
-  });
+    // Update image in all containers
+    if (deploymentBody.spec.template.spec.containers) {
+      deploymentBody.spec.template.spec.containers.forEach(container => {
+        if (container.name === deployment) {
+          container.image = fullImageName;
+          console.log(`🔄 Updated container ${container.name} to ${fullImageName}`);
+        }
+      });
+    }
+    
+    // Apply the update
+    const result = await k8sApi.patchNamespacedDeployment(
+      deployment,
+      namespace,
+      deploymentBody,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { headers: { 'Content-Type': 'application/merge-patch+json' } }
+    );
+    
+    console.log(`✅ Successfully updated ${deployment} in ${namespace}`);
+    return result.body;
+    
+  } catch (error) {
+    console.error(`❌ Failed to update ${deployment}:`, error.message);
+    throw error;
+  }
 }
 
 // Send Telegram notification
