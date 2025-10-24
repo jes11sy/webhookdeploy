@@ -1,5 +1,4 @@
 const express = require('express');
-const { exec } = require('child_process');
 const axios = require('axios');
 const cron = require('node-cron');
 
@@ -203,30 +202,7 @@ app.post('/webhook/dockerhub', async (req, res) => {
   }
 });
 
-// Update deployment function
-async function updateDeployment(namespace, deployment, image, tag) {
-  return new Promise((resolve, reject) => {
-    const fullImageName = `${image}:${tag}`;
-    const command = `kubectl set image deployment/${deployment} ${deployment}=${fullImageName} -n ${namespace}`;
-    
-    console.log(`🔄 Executing: ${command}`);
-    
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`❌ kubectl error: ${error}`);
-        reject(error);
-        return;
-      }
-      
-      console.log(`✅ kubectl output: ${stdout}`);
-      if (stderr) {
-        console.log(`⚠️ kubectl stderr: ${stderr}`);
-      }
-      
-      resolve(stdout);
-    });
-  });
-}
+// No deployment updates - webhook only sends notifications
 
 // Send Telegram notification
 async function sendTelegramNotification(message) {
