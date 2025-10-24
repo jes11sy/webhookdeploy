@@ -16,23 +16,39 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const SERVICE_MAPPINGS = {
   // Backend services
   'auth-service': { namespace: 'backend', deployment: 'auth-service' },
+  'auth': { namespace: 'backend', deployment: 'auth-service' },
   'masters-service': { namespace: 'backend', deployment: 'masters-service' },
+  'masters': { namespace: 'backend', deployment: 'masters-service' },
   'orders-service': { namespace: 'backend', deployment: 'orders-service' },
+  'orders': { namespace: 'backend', deployment: 'orders-service' },
   'users-service': { namespace: 'backend', deployment: 'users-service' },
+  'users': { namespace: 'backend', deployment: 'users-service' },
   'calls-service': { namespace: 'backend', deployment: 'calls-service' },
+  'calls': { namespace: 'backend', deployment: 'calls-service' },
   'reports-service': { namespace: 'backend', deployment: 'reports-service' },
+  'reports': { namespace: 'backend', deployment: 'reports-service' },
   'avito-service': { namespace: 'backend', deployment: 'avito-service' },
+  'avito': { namespace: 'backend', deployment: 'avito-service' },
   'cash-service': { namespace: 'backend', deployment: 'cash-service' },
+  'cash': { namespace: 'backend', deployment: 'cash-service' },
   'files-service': { namespace: 'backend', deployment: 'files-service' },
+  'files': { namespace: 'backend', deployment: 'files-service' },
+  'backup-service': { namespace: 'backend', deployment: 'backup-service' },
+  'backup': { namespace: 'backend', deployment: 'backup-service' },
   
   // Frontend services
   'callcentre-frontend': { namespace: 'frontend', deployment: 'callcentre-frontend' },
+  'callcentre': { namespace: 'frontend', deployment: 'callcentre-frontend' },
   'dircrm-frontend': { namespace: 'frontend', deployment: 'dircrm-frontend' },
+  'front_dir': { namespace: 'frontend', deployment: 'dircrm-frontend' },
   'mastercrm-frontend': { namespace: 'frontend', deployment: 'mastercrm-frontend' },
+  'mastercrm': { namespace: 'frontend', deployment: 'mastercrm-frontend' },
   
   // CRM services (3rd node)
   'notifications-service': { namespace: 'crm', deployment: 'notifications-service' },
-  'realtime-service': { namespace: 'crm', deployment: 'realtime-service' }
+  'notifications': { namespace: 'crm', deployment: 'notifications-service' },
+  'realtime-service': { namespace: 'crm', deployment: 'realtime-service' },
+  'realtime': { namespace: 'crm', deployment: 'realtime-service' }
 };
 
 app.use(express.json());
