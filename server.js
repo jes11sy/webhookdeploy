@@ -38,25 +38,8 @@ app.get('/health', (req, res) => {
 // Docker Hub webhook
 app.post('/webhook/dockerhub', (req, res) => {
   try {
-    const signature = req.headers['x-hub-signature-256'];
-    
-    if (!signature) {
-      console.log('No signature provided');
-      return res.status(401).json({ error: 'No signature provided' });
-    }
-
-    // Verify signature
-    const expectedSignature = crypto
-      .createHmac('sha256', DOCKERHUB_SECRET)
-      .update(JSON.stringify(req.body))
-      .digest('hex');
-    
-    const providedSignature = signature.replace('sha256=', '');
-    
-    if (expectedSignature !== providedSignature) {
-      console.log('Invalid signature');
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
+    // Docker Hub doesn't send signature, so we skip verification
+    console.log('📦 Docker Hub webhook received');
 
     const { repository, push_data } = req.body;
     const imageName = repository.repo_name;
