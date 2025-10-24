@@ -16,7 +16,9 @@ try {
   
   // Set the token from ServiceAccount
   const tokenPath = '/var/run/secrets/kubernetes.io/serviceaccount/token';
+  const caPath = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
   const fs = require('fs');
+  
   if (fs.existsSync(tokenPath)) {
     const token = fs.readFileSync(tokenPath, 'utf8');
     kc.setCurrentContext(kc.getCurrentContext());
@@ -24,6 +26,18 @@ try {
       request.headers.Authorization = `Bearer ${token}`;
     };
     console.log('✅ ServiceAccount token loaded');
+  }
+  
+  // Set CA certificate
+  if (fs.existsSync(caPath)) {
+    const ca = fs.readFileSync(caPath, 'utf8');
+    kc.applyToRequest = (request) => {
+      if (request.headers.Authorization) {
+        request.headers.Authorization = request.headers.Authorization;
+      }
+      request.ca = ca;
+    };
+    console.log('✅ CA certificate loaded');
   }
   
   k8sApi = kc.makeApiClient(k8s.AppsV1Api);
