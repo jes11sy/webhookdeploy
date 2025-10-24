@@ -19,7 +19,10 @@ try {
   const fs = require('fs');
   if (fs.existsSync(tokenPath)) {
     const token = fs.readFileSync(tokenPath, 'utf8');
-    kc.setToken(token);
+    kc.setCurrentContext(kc.getCurrentContext());
+    kc.applyToRequest = (request) => {
+      request.headers.Authorization = `Bearer ${token}`;
+    };
     console.log('✅ ServiceAccount token loaded');
   }
   
