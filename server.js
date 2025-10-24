@@ -58,6 +58,43 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+// GitHub Actions webhook
+app.post('/webhook/github', (req, res) => {
+  try {
+    console.log('🐙 GitHub Actions webhook received');
+    
+    const { action, workflow_run, repository } = req.body;
+    
+    if (action === 'completed') {
+      const { conclusion, status, head_branch } = workflow_run;
+      const repoName = repository.name;
+      
+      console.log(`🐙 GitHub Actions completed for ${repoName}: ${conclusion}`);
+      
+      if (conclusion === 'success') {
+        sendTelegramNotification(
+          `✅ <b>GitHub Actions</b> успешно завершен!\n` +
+          `Репозиторий: ${repoName}\n` +
+          `Ветка: ${head_branch}\n` +
+          `Статус: ${conclusion}`
+        );
+      } else {
+        sendTelegramNotification(
+          `❌ <b>GitHub Actions</b> завершен с ошибкой!\n` +
+          `Репозиторий: ${repoName}\n` +
+          `Ветка: ${head_branch}\n` +
+          `Статус: ${conclusion}`
+        );
+      }
+    }
+    
+    res.status(200).json({ message: 'GitHub webhook processed successfully' });
+  } catch (error) {
+    console.error('GitHub webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Docker Hub webhook
 app.post('/webhook/dockerhub', (req, res) => {
   try {
