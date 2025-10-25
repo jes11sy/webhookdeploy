@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cron = require('node-cron');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -178,22 +179,20 @@ app.post('/webhook/dockerhub', async (req, res) => {
 
     const serviceConfig = SERVICE_MAPPINGS[serviceKey];
     
-    // Update deployment - ВСЕГДА используем latest тег
+    // Send notification about new image
     try {
-      await updateDeployment(serviceConfig.namespace, serviceConfig.deployment, imageName, 'latest');
-      
-      console.log(`✅ Successfully updated ${serviceConfig.deployment}`);
+      console.log(`✅ Received webhook for ${serviceConfig.deployment}`);
       
       // Mark service as updated for monitoring
       updatedServices.set(serviceKey, true);
       
-      sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> обновлен до ${imageName}:latest\n⏳ Ожидаем запуск...`);
+      sendTelegramNotification(`🚀 <b>${serviceConfig.deployment}</b> получил новый образ ${imageName}:${tag}\n⏳ Ожидаем обновление...`);
       
       res.status(200).json({ message: 'Webhook processed successfully' });
     } catch (error) {
-      console.error(`❌ Failed to update ${serviceConfig.deployment}:`, error);
-      sendTelegramNotification(`❌ Ошибка обновления ${serviceConfig.deployment}: ${error.message}`);
-      res.status(500).json({ error: 'Failed to update deployment' });
+      console.error(`❌ Failed to process webhook for ${serviceConfig.deployment}:`, error);
+      sendTelegramNotification(`❌ Ошибка обработки webhook для ${serviceConfig.deployment}: ${error.message}`);
+      res.status(500).json({ error: 'Failed to process webhook' });
     }
 
   } catch (error) {
@@ -248,7 +247,7 @@ cron.schedule('*/30 * * * * *', async () => {
         // Send success notification if this service was recently updated
         if (updatedServices.has(serviceName)) {
           await sendTelegramNotification(
-            `✅ <b>${serviceName}</b> успешно обновлен и работает!\n` +
+            `✅ <b>${serviceName}</b> работает нормально!\n` +
             `Статус: ${status.readyReplicas}/${status.replicas} running\n` +
             `Namespace: ${config.namespace}`
           );
